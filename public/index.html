@@ -20,7 +20,7 @@
   <p>Engineered with Socket.IO, TypeScript, and bidirectional WebSocket room dispatching.</p>
 
   <div class="card">
-    <h3>Device: <span id="deviceId" class="badge">meter-plant-01</span> <span id="latency" class="badge" style="background: #10b981; margin-left: 0.5rem;">RTT: -- ms</span></h3>
+    <h3>Device: <span id="deviceId" class="badge">meter-plant-01</span> <span id="latency" class="badge" style="background: #10b981; margin-left: 0.5rem;">RTT: -- ms</span> <span id="connectionStatus" class="badge" style="background: #10b981; margin-left: 0.5rem;">🟢 Connected</span></h3>
     <div class="grid">
       <div><div class="label">Voltage</div><div id="voltage" class="metric">-- V</div></div>
       <div><div class="label">Current</div><div id="current" class="metric">-- A</div></div>
@@ -40,9 +40,40 @@
       auth: { token: 'demo-token' }
     });
 
+    const connectionStatusEl = document.getElementById('connectionStatus');
+    const activeRooms = new Set(['meter-plant-01']);
+
     socket.on('connect', () => {
       console.log('Connected to real-time telemetry stream');
-      socket.emit('subscribeDevice', 'meter-plant-01');
+      if (connectionStatusEl) {
+        connectionStatusEl.innerText = '🟢 Connected';
+        connectionStatusEl.style.background = '#10b981';
+      }
+      activeRooms.forEach(room => socket.emit('subscribeDevice', room));
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.warn('Socket disconnected:', reason);
+      if (connectionStatusEl) {
+        connectionStatusEl.innerText = '⚠️ Disconnected (Reconnecting...)';
+        connectionStatusEl.style.background = '#dc2626';
+      }
+    });
+
+    socket.io.on('reconnect_attempt', (attempt) => {
+      if (connectionStatusEl) {
+        connectionStatusEl.innerText = `🔄 Reconnecting (Attempt ${attempt})...`;
+        connectionStatusEl.style.background = '#f59e0b';
+      }
+    });
+
+    socket.io.on('reconnect', () => {
+      console.log('Socket reconnected successfully');
+      if (connectionStatusEl) {
+        connectionStatusEl.innerText = '🟢 Connected';
+        connectionStatusEl.style.background = '#10b981';
+      }
+      activeRooms.forEach(room => socket.emit('subscribeDevice', room));
     });
 
     // Real-time round-trip latency heartbeat

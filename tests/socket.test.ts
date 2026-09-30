@@ -156,4 +156,31 @@ describe('Socket.IO Real-Time Telemetry Tests', () => {
       done();
     });
   });
+
+  it('should restore room subscriptions following client reconnect', (done) => {
+    clientSocket = Client(`http://localhost:${port}`, {
+      transports: ['websocket'],
+      auth: { token: validToken }
+    });
+
+    let joinCount = 0;
+
+    clientSocket.on('connect', () => {
+      clientSocket.emit('subscribeDevice', 'meter-reconnect-01');
+    });
+
+    clientSocket.on('roomJoined', (data: any) => {
+      joinCount++;
+      if (joinCount === 1) {
+        expect(data.room).toBe('device:meter-reconnect-01');
+        // Simulate temporary disconnection and reconnect
+        clientSocket.disconnect();
+        clientSocket.connect();
+      } else if (joinCount === 2) {
+        expect(data.room).toBe('device:meter-reconnect-01');
+        expect(clientSocket.connected).toBe(true);
+        done();
+      }
+    });
+  });
 });
