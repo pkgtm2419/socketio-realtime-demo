@@ -90,7 +90,7 @@ socketio-realtime-demo/
 ```bash
 git clone https://github.com/pkgtm2419/socketio-realtime-demo.git
 cd socketio-realtime-demo
-npm install --force
+npm i -f
 ```
 
 ### 3. Environment Setup
