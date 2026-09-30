@@ -43,6 +43,17 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('pingCheck', (clientTimestamp: number, callback) => {
+    const payload = {
+      clientTimestamp,
+      serverTimestamp: Date.now()
+    };
+    socket.emit('pongAck', payload);
+    if (typeof callback === 'function') {
+      callback(payload);
+    }
+  });
+
   socket.on('disconnect', (reason) => {
     console.log(`[SOCKET DISCONNECTED] ID: ${socket.id}, Reason: ${reason}`);
   });

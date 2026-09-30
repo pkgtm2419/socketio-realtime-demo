@@ -29,6 +29,12 @@ describe('Socket.IO Real-Time Telemetry Tests', () => {
       socket.on('acknowledgeAlert', (alertId: string, cb: any) => {
         if (typeof cb === 'function') cb({ received: true });
       });
+
+      socket.on('pingCheck', (clientTimestamp: number, cb: any) => {
+        const payload = { clientTimestamp, serverTimestamp: Date.now() };
+        socket.emit('pongAck' as any, payload);
+        if (typeof cb === 'function') cb(payload);
+      });
     });
 
     httpServer.listen(() => {
@@ -87,6 +93,22 @@ describe('Socket.IO Real-Time Telemetry Tests', () => {
       expect(data.room).toBe('device:meter-plant-01');
       expect(data.status).toBe('SUCCESS');
       done();
+    });
+  });
+
+  it('should measure round-trip latency via pingCheck and pongAck', (done) => {
+    clientSocket = Client(`http://localhost:${port}`, {
+      transports: ['websocket'],
+      auth: { token: validToken }
+    });
+
+    clientSocket.on('connect', () => {
+      const clientTs = Date.now();
+      clientSocket.emit('pingCheck', clientTs, (pong: any) => {
+        expect(pong.clientTimestamp).toBe(clientTs);
+        expect(pong.serverTimestamp).toBeGreaterThanOrEqual(clientTs);
+        done();
+      });
     });
   });
 });
