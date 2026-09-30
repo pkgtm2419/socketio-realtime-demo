@@ -25,6 +25,7 @@ export interface ServerToClientEvents {
   telemetryStream: (data: TelemetryData) => void;
   systemAlert: (alert: SystemAlert) => void;
   roomJoined: (response: { room: string; status: string }) => void;
+  roomError: (error: { room: string; message: string; code: string }) => void;
   pongAck: (data: LatencyPong) => void;
 }
 

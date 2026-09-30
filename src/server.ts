@@ -24,6 +24,19 @@ io.on('connection', (socket) => {
   console.log(`[SOCKET CONNECTED] ID: ${socket.id}, User: ${socket.data.email} (${socket.data.role})`);
 
   socket.on('subscribeDevice', (deviceId: string) => {
+    // Role-based room authorization guard
+    const isAdminRoom = deviceId.startsWith('admin') || deviceId.includes('critical-alarm') || deviceId.endsWith('-admin');
+    if (isAdminRoom && socket.data.role !== 'admin' && socket.data.role !== 'manager') {
+      const deniedRoom = `device:${deviceId}`;
+      console.warn(`[ROOM DENIED] Socket ${socket.id} (${socket.data.role}) forbidden from room: ${deniedRoom}`);
+      socket.emit('roomError', {
+        room: deniedRoom,
+        message: 'Access denied: Admin or Manager role required to access privileged room',
+        code: 'FORBIDDEN'
+      });
+      return;
+    }
+
     const roomName = `device:${deviceId}`;
     socket.join(roomName);
     console.log(`[ROOM JOIN] Socket ${socket.id} joined room: ${roomName}`);
