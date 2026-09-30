@@ -22,6 +22,15 @@ describe('Socket.IO Real-Time Telemetry Tests', () => {
 
     ioServer.on('connection', (socket) => {
       socket.on('subscribeDevice', (deviceId: string) => {
+        const isAdminRoom = deviceId.startsWith('admin') || deviceId.includes('critical-alarm') || deviceId.endsWith('-admin');
+        if (isAdminRoom && socket.data.role !== 'admin' && socket.data.role !== 'manager') {
+          socket.emit('roomError' as any, {
+            room: `device:${deviceId}`,
+            message: 'Access denied: Admin or Manager role required to access privileged room',
+            code: 'FORBIDDEN'
+          });
+          return;
+        }
         socket.join(`device:${deviceId}`);
         socket.emit('roomJoined' as any, { room: `device:${deviceId}`, status: 'SUCCESS' });
       });
@@ -109,6 +118,42 @@ describe('Socket.IO Real-Time Telemetry Tests', () => {
         expect(pong.serverTimestamp).toBeGreaterThanOrEqual(clientTs);
         done();
       });
+    });
+  });
+
+  it('should reject unauthorized socket from joining admin-restricted room', (done) => {
+    clientSocket = Client(`http://localhost:${port}`, {
+      transports: ['websocket'],
+      auth: { token: validToken }
+    });
+
+    clientSocket.on('connect', () => {
+      clientSocket.emit('subscribeDevice', 'admin-control-grid');
+    });
+
+    clientSocket.on('roomError', (err: any) => {
+      expect(err.room).toBe('device:admin-control-grid');
+      expect(err.code).toBe('FORBIDDEN');
+      expect(err.message).toContain('Access denied');
+      done();
+    });
+  });
+
+  it('should allow admin socket to join admin-restricted room', (done) => {
+    const adminToken = jwt.sign({ id: 'usr_admin', email: 'admin@iot.com', role: 'admin' }, ENV.JWT_SECRET);
+    clientSocket = Client(`http://localhost:${port}`, {
+      transports: ['websocket'],
+      auth: { token: adminToken }
+    });
+
+    clientSocket.on('connect', () => {
+      clientSocket.emit('subscribeDevice', 'admin-control-grid');
+    });
+
+    clientSocket.on('roomJoined', (data: any) => {
+      expect(data.room).toBe('device:admin-control-grid');
+      expect(data.status).toBe('SUCCESS');
+      done();
     });
   });
 });
